@@ -1,0 +1,36 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.g.dart
+
+# Android
+android/local.properties
+android/.gradle/
+android/app/debug.keystore
+android/captures/
+android/key.jks
+
+# iOS
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/.last_build_id
+ios/Pods/
+*.ipa
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VSCode
+.vscode/
+!.vscode/extensions.json
+
+# macOS
+.DS_Store
+
+# Coverage
+coverage/

@@ -1,0 +1,32 @@
+{
+  "name": "routeiq",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @routeiq/api dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "down": "docker compose -f infra/docker/docker-compose.yml down",
+    "nuke": "docker compose -f infra/docker/docker-compose.yml down -v",
+    "ddb:init": "tsx --env-file=.env scripts/create-table.ts",
+    "s3:init": "tsx --env-file=.env scripts/create-bucket.ts",
+    "seed": "tsx --env-file=.env scripts/seed.ts",
+    "bootstrap:local": "pnpm ddb:init && pnpm s3:init && pnpm seed",
+    "reset": "pnpm nuke && pnpm up && node -e \"setTimeout(()=>{},8000)\" && pnpm bootstrap:local"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.717.0",
+    "@aws-sdk/client-s3": "^3.717.0",
+    "@types/node": "^22.10.2",
+    "dotenv": "^16.6.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

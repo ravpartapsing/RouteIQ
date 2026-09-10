@@ -1,0 +1,8 @@
+# Copy this file to local.properties and fill in the paths for your machine.
+# DO NOT commit local.properties to version control.
+
+sdk.dir=/path/to/android/sdk
+flutter.sdk=/path/to/flutter
+flutter.buildMode=release
+flutter.versionName=1.0.0
+flutter.versionCode=1

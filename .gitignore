@@ -1,0 +1,23 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+.DS_Store
+coverage/
+.turbo/
+.pnpm-store/
+
+# Flutter
+apps/mobile/.dart_tool/
+apps/mobile/build/
+apps/mobile/.flutter-plugins*
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/ios/Pods/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/

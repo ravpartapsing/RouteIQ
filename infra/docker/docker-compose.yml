@@ -1,0 +1,55 @@
+# Local stack. Nothing here needs AWS credentials or network access.
+#
+#   docker compose -f infra/docker/docker-compose.yml up -d
+#   pnpm bootstrap:local
+#
+# A `down -v` WIPES DynamoDB and S3 — re-run bootstrap after one.
+# Ports are offset from the AWS defaults on purpose: the Inkto stack on this machine already
+# holds 8000, 4566 and 8080, and both projects need to run at the same time.
+#   DynamoDB 8200 · S3 4666 · table browser 8201 · api 8180
+name: routeiq
+
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:2.5.4
+    command: ['-jar', 'DynamoDBLocal.jar', '-sharedDb', '-dbPath', '/data']
+    working_dir: /home/dynamodblocal
+    user: root
+    ports: ['8200:8000']
+    volumes: ['ddb-data:/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'exec 3<>/dev/tcp/127.0.0.1/8000 || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  # S3 only. LocalStack's other services are not used and would just slow start-up.
+  s3:
+    image: localstack/localstack:3.8
+    environment:
+      SERVICES: s3
+      DEBUG: '0'
+      PERSISTENCE: '1'
+    ports: ['4666:4566']
+    volumes: ['s3-data:/var/lib/localstack']
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:4566/_localstack/health || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  # Browsable view of the table while developing. Not part of any test path.
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin:latest
+    environment:
+      DYNAMO_ENDPOINT: http://dynamodb:8000
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+    ports: ['8201:8001']
+    depends_on:
+      dynamodb: { condition: service_healthy }
+
+volumes:
+  ddb-data:
+  s3-data:
