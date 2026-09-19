@@ -15,7 +15,8 @@ Two decisions do most of the cost work:
    the mobile app must buffer for offline anyway, so it costs nothing in design terms.
 2. **Raw tracks carry a TTL of 90 days.** IFTA needs four years of *state mileage*, not four
    years of 30-second pings. A nightly roll-up writes per-state daily totals that live forever;
-   the raw trace expires itself at no cost.
+   the raw trace expires itself at no cost. The roll-up needs the `mapMatching` feature, which is
+   **off for now** (DECISIONS D7) — until it is on, raw traces are simply kept for 90 days.
 
 ## Item collections
 

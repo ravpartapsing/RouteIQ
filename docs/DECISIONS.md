@@ -52,74 +52,48 @@ Reports are batch by nature and Athena bills per compressed byte scanned. Phase 
 
 ---
 
-## D7 — Maps: OpenStreetMap the whole way down, no Google
+## D7 — Maps: OpenStreetMap only, and every map feature is a switch
 
-Four separate needs, routinely conflated. Each gets its own answer.
+Nothing paid, and nothing that needs a running server, is on today.
 
-### Basemap tiles — MapLibre GL JS + Protomaps (PMTiles)
+| Feature | Env switch | Default | What runs when on |
+|---|---|---|---|
+| `maps` | `FEATURE_MAPS` | **on** | MapLibre (web) / flutter_map (mobile) showing where the driver is, on free OpenFreeMap tiles. No key, no server of ours. |
+| `routing` | `FEATURE_ROUTING` | **off — on hold** | Truck-legal routes and billable miles from Valhalla |
+| `mapMatching` | `FEATURE_MAP_MATCHING` | **off — on hold** | Snapping GPS traces to roads, for automatic IFTA state mileage |
 
-[MapLibre GL JS](https://maplibre.org) is the BSD-licensed fork of Mapbox GL JS, so there is no
-per-map-load fee and no licence rug-pull to worry about.
+A tenant can switch a feature off for itself (`TENANT#<id> / SETTINGS#features`), but **can never
+switch on what the platform has off** — no tenant can enable routing when no routing service
+exists. `GET /config` tells the apps what is on; when maps are off it returns `map: null`, so a
+client never even loads a tile style.
 
-For tiles, **Protomaps PMTiles**: the entire basemap is *one file* served over HTTP range
-requests. It needs no tile server at all — put the North America extract in S3 behind CloudFront
-and the cost is storage plus requests. That is an unusually good fit for a serverless
-architecture, because it is the one map component that introduces no running process.
+Routing and map-matching both need `VALHALLA_URL`, and **the API refuses to start** if either is
+switched on without it — a failed deploy is better than a feature that silently does nothing.
 
-Dev can point at [OpenFreeMap](https://openfreemap.org) (public, no API key) until the extract
-is built.
+### Tiles
 
-### Geocoding — cache first, then self-host
+OpenFreeMap (`tiles.openfreemap.org`) — free, no API key, no request quota. Not the
+`tile.openstreetmap.org` servers: OSM's own usage policy rules those out for an app with real
+traffic. The style URL is `MAP_STYLE_URL`, so switching to self-hosted Protomaps PMTiles on S3
+later is a config change.
 
-A TMS geocodes the same few thousand facilities over and over, so **the cache is the strategy**:
-the resolved point is stored on the `LOCATION#<id>` item and a facility is geocoded once, ever.
-Real volume ends up in the low thousands per month, not per day.
+### While routing and map-matching are off
 
-That makes the provider question small. Order of preference: cached hit → **US Census Geocoder**
-(free, unlimited, excellent US street coverage, bulk endpoint) → self-hosted **Photon** when
-international addresses start appearing. Public Nominatim is fine for development but its usage
-policy rules it out for production traffic.
+- **Billable miles are entered by the dispatcher.** Every order records the source of its miles
+  (`MANUAL` now; `VALHALLA` or `PCMILER` later), so turning routing on is an addition, not a
+  data migration.
+- **IFTA state mileage is not automatic.** Raw GPS is still stored (D4), so switching
+  map-matching on later can back-fill up to the 90-day TTL. Anything older has to come from
+  driver trip sheets.
+- **The driver map shows position and stops, not a drawn route.** A straight line between stops
+  is free; a road-following route needs `routing`.
 
-### Routing, truck restrictions and map-matching — Valhalla
+### When they come back
 
-**[Valhalla](https://valhalla.github.io/valhalla/)** is the only open-source engine that does all
-three things a TMS needs:
+Valhalla, self-hosted on one small box (~€8–17/mo): the only open-source engine with truck
+costing (height/weight/hazmat) *and* map-matching. OpenRouteService's free tier can stand in for
+testing. Set `VALHALLA_URL`, flip the switch.
 
-- **Truck costing** honouring OSM `maxheight` / `maxweight` / `maxlength` / `hazmat` tags — a car
-  route that sends a 13'6" trailer under a 12' bridge is a claim, not an inconvenience.
-  (Google has no truck routing either, so this is not a compromise versus the paid option.)
-- **Meili map-matching** — snapping raw GPS traces to roads. This is exactly the tool that turns
-  the batched traces from D4 into **per-state mileage for IFTA**, which is otherwise a genuinely
-  hard problem.
-- Isochrones and matrix calls for the dispatch board's "which driver is closest" suggestions.
-
-OSRM is faster but ships no truck profile, which disqualifies it here.
-
-**Valhalla needs a process, and this is the one exception to D1.** It is a C++ service holding
-routing tiles on disk (~10–20 GB for North America) — a poor fit for Lambda, and EFS-mounted
-tiles would be slow and not obviously cheaper. Volume is tiny in server terms: ~1,500 orders/day
-× a few route calls is well under 1 request/second, plus one nightly map-matching batch. **One
-small always-on box (Hetzner CPX21/CPX31, ~€8–17/mo) carries it comfortably.**
-
-Until that box exists, **OpenRouteService** — also open source, also OSM, with a `driving-hgv`
-truck profile — has a free API tier that covers development and early pilots. Same data, same
-lineage, so moving to self-hosted Valhalla later is a config change, not a migration.
-
-### Billable miles — the commercial caveat
-
-US freight is invoiced on **PC\*MILER** (Trimble) miles, and broker and shipper contracts name it
-explicitly. OSM-derived mileage will differ by a small percentage, and on a disputed invoice the
-counterparty will quote PC\*MILER.
-
-This is a **business** decision, not a technical one, and it does not block anything now:
-
-- Small asset-based carriers billing their own customers rarely care.
-- Anyone hauling for brokers eventually will.
-
-So: build on Valhalla, store the mileage **and its source** on the order, and keep the mileage
-calculation behind an interface so a per-tenant PC\*MILER Web Services option can be added later
-for the customers who demand it. Recording the source from day one is what makes that possible
-without a data migration.
-
-**Net effect:** zero map licensing cost, no Google, truck-legal routing, and IFTA state mileage
-falls out of a tool we were already running.
+**Billable-miles caveat, unchanged:** US freight is invoiced on PC\*MILER miles and broker
+contracts name it. Irrelevant until you sell to brokers; the recorded mileage source keeps the
+option open.

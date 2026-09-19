@@ -2,6 +2,7 @@ import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import { health } from './routes/health.js';
+import { clientConfig } from './routes/client-config.js';
 
 /**
  * The whole API, as a plain Fastify instance.
@@ -26,6 +27,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   await app.register(health);
+  await app.register(clientConfig);
 
   app.setErrorHandler((error: FastifyError, request, reply) => {
     const status = error.statusCode ?? 500;
