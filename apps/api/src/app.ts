@@ -16,7 +16,6 @@ export async function buildApp(): Promise<FastifyInstance> {
     logger: { level: process.env['LOG_LEVEL'] ?? 'info' },
     // API Gateway already assigns a request id; reusing it makes a trace followable end to end.
     requestIdHeader: 'x-amzn-trace-id',
-    disableRequestLogging: false,
     trustProxy: true,
   });
 

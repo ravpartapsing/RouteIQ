@@ -21,3 +21,9 @@ apps/mobile/ios/Pods/
 *.tfstate
 *.tfstate.*
 .terraform/
+*.tfvars
+.terraform.lock.hcl.bak
+infra/terraform/**/.build/
+apps/api/dist-lambda/
+
+apps/web/.env.development

@@ -1,0 +1,64 @@
+{
+  "partitionKey": {
+    "name": "PK",
+    "type": "S"
+  },
+  "sortKey": {
+    "name": "SK",
+    "type": "S"
+  },
+  "ttlAttribute": "ttl",
+  "billing": "PAY_PER_REQUEST",
+  "pointInTimeRecovery": true,
+  "streams": true,
+  "globalSecondaryIndexes": [
+    {
+      "name": "GSI1",
+      "partitionKey": {
+        "name": "GSI1PK",
+        "type": "S"
+      },
+      "sortKey": {
+        "name": "GSI1SK",
+        "type": "S"
+      },
+      "projection": "ALL"
+    },
+    {
+      "name": "GSI2",
+      "partitionKey": {
+        "name": "GSI2PK",
+        "type": "S"
+      },
+      "sortKey": {
+        "name": "GSI2SK",
+        "type": "S"
+      },
+      "projection": "ALL"
+    },
+    {
+      "name": "GSI3",
+      "partitionKey": {
+        "name": "GSI3PK",
+        "type": "S"
+      },
+      "sortKey": {
+        "name": "GSI3SK",
+        "type": "S"
+      },
+      "projection": "ALL"
+    },
+    {
+      "name": "GSI4",
+      "partitionKey": {
+        "name": "GSI4PK",
+        "type": "S"
+      },
+      "sortKey": {
+        "name": "GSI4SK",
+        "type": "S"
+      },
+      "projection": "ALL"
+    }
+  ]
+}

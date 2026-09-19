@@ -15,6 +15,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../widgets/server_status_section.dart';
 
 typedef _SwitchEntry = ({String key, String title, bool defaultOn});
 
@@ -87,6 +88,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             switches: _switches,
             onToggle: _toggle,
           ),
+          const SizedBox(height: AppSpacing.lg),
+          const ServerStatusSection(),
           const SizedBox(height: AppSpacing.lg),
           const _SupportSection(),
         ],
