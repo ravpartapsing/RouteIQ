@@ -38,12 +38,52 @@ should report `"tableStatus":"ACTIVE"` and list `GSI1..GSI4`.
 
 `pnpm nuke` deletes the volumes; re-run `pnpm bootstrap:local` after one.
 
+## Dev environment on AWS
+
+| | |
+|---|---|
+| API | `https://8rf5rrtpc5.execute-api.us-east-1.amazonaws.com` (the default execute-api URL; no custom domain yet) |
+| Table | `routeiq-dev` |
+| Documents | `routeiq-dev-documents-504730079367` |
+| Budget alarm | `account-monthly-total`: **$40/month for the whole account, RouteIQ and Inkto combined** |
+
+Deploy a change to the API:
+
+```bash
+pnpm --filter @routeiq/api build:lambda
+terraform -chdir=infra/terraform/envs/dev apply
+```
+
+`terraform.tfvars` (gitignored) holds the budget email and limit. The URL survives redeploys; it
+only changes if the API resource itself is destroyed, and the apps take it at build time, so
+it's never hard-coded.
+
+## Web portal: runs on this Mac for testing and UAT
+
+```bash
+pnpm --filter @routeiq/web dev          # → the AWS dev API (apps/web/.env.development)
+pnpm --filter @routeiq/web dev:laptop   # → the API on this Mac
+```
+
+Open http://localhost:5173. The API's CORS allows exactly that origin.
+
+## Driver app builds
+
+The API address is baked in at build time:
+
+```bash
+cd apps/mobile
+flutter build apk --release --dart-define=API_BASE_URL=https://8rf5rrtpc5.execute-api.us-east-1.amazonaws.com
+```
+
+Settings → **Server** in the app shows which API a build points at and whether it answers.
+
 ## Layout
 
 ```
 apps/
   api/        Fastify. app.ts is host-agnostic; lambda.ts wraps it, local.ts serves it.
-  web/        React dashboard (not started)
+  web/        React portal: shell, server status, OSM map. Runs on the Mac.
   mobile/     Flutter driver app — 15 of 34 screens, still on mock data
 packages/
   data/       Table definition + every key builder in the system

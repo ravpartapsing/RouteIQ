@@ -53,7 +53,7 @@ export function Dashboard() {
           </div>
           <div className="relative">
             <LiveMap styleUrl={state.config.map.styleUrl} className="h-[360px]" />
-            <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-white/90 px-3 py-1.5 text-xs text-gray-600 shadow">
+            <div className="pointer-events-none absolute bottom-4 left-4 max-w-[70%] rounded-md bg-white/90 px-3 py-1.5 text-xs text-gray-600 shadow">
               No trucks reporting yet — positions arrive with GPS in Phase 6
             </div>
           </div>

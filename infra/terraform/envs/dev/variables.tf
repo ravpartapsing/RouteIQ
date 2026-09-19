@@ -14,9 +14,9 @@ variable "budget_email" {
 }
 
 variable "monthly_budget_usd" {
-  description = "Alert threshold for the whole account's monthly spend."
+  description = "Alert threshold for the whole account (RouteIQ and Inkto combined)."
   type        = number
-  default     = 20
+  default     = 40
 }
 
 variable "cors_origins" {
