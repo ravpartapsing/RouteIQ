@@ -62,8 +62,9 @@ export const TABLE_DEFINITION: TableDef = {
       projection: 'ALL',
     },
     {
-      // Business-key lookup: order number, driver code, truck unit, invoice number, and the
-      // cross-tenant login keys (user email, tenant slug, refresh-token hash).
+      // Business-key lookup: order number, truck unit, invoice number. Anything that must be
+      // *unique* (login email, carrier code, driver code) uses a guard item instead — see
+      // `key.unique` — because a GSI read can be stale and cannot enforce uniqueness.
       name: 'GSI3',
       partitionKey: { name: 'GSI3PK', type: 'S' },
       sortKey: { name: 'GSI3SK', type: 'S' },

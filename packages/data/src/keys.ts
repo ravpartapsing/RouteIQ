@@ -25,6 +25,14 @@ export const ENTITY = {
 
 export type EntityName = (typeof ENTITY)[keyof typeof ENTITY];
 
+/** Values that must be unique. Tenant-scoped kinds embed the tenant id in the value. */
+export type UniqueKind = 'EMAIL' | 'CARRIER_CODE' | 'DRIVER_CODE';
+
+/** Guard value for a driver code, which is only unique within one carrier. */
+export function driverCodeGuardValue(tenantId: string, driverCode: string): string {
+  return `${tenantId}#${driverCode}`;
+}
+
 export interface Key {
   PK: string;
   SK: string;
@@ -98,6 +106,8 @@ export const key = {
 
   /** Web user (owner / dispatcher / accounting). */
   user: (userId: string): Key => ({ PK: `USER#${userId}`, SK: 'META' }),
+  /** Password hash, activation code hash, lockout counters. Never listed, never projected. */
+  userCredential: (userId: string): Key => ({ PK: `USER#${userId}`, SK: 'CRED' }),
 
   /**
    * Driver. `CRED` holds the dispatcher-issued activation code and, once activated, the
@@ -190,6 +200,17 @@ export const key = {
     SK: `${isoTimestamp(at)}#${notificationId}`,
   }),
 
+  /**
+   * Uniqueness guard. DynamoDB has no unique constraint and a GSI read can be stale, so anything
+   * that must be unique — a login email, a carrier code, a driver code within a carrier — gets a
+   * guard item written with `attribute_not_exists` in the same transaction as the thing it guards.
+   * It doubles as the lookup: one strongly-consistent GetItem from value to owner.
+   */
+  unique: (kind: UniqueKind, value: string): Key => ({
+    PK: `UNIQUE#${kind}#${value.trim().toUpperCase()}`,
+    SK: 'META',
+  }),
+
   /** Write-once guard so a retried mobile upload never double-posts a delivery. */
   idempotency: (scope: string, idempotencyKey: string): Key => ({
     PK: `IDEMP#${scope}#${idempotencyKey}`,
@@ -237,28 +258,13 @@ export const gsi2 = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// GSI3 — business-key and login lookups
+// GSI3 — business-key lookups (order number, truck unit, invoice number)
 // ---------------------------------------------------------------------------
 
 export const gsi3 = {
   /** Human-facing identifiers that must resolve to exactly one item within a tenant. */
   businessKey: (tenantId: string, keyType: string, value: string): Gsi3 => ({
     GSI3PK: `TENANT#${tenantId}#${keyType.toUpperCase()}#${value.toUpperCase()}`,
-    GSI3SK: 'META',
-  }),
-  /** Web login. Cross-tenant on purpose: the user types an email, not a tenant. */
-  userEmail: (email: string): Gsi3 => ({
-    GSI3PK: `EMAIL#${email.trim().toLowerCase()}`,
-    GSI3SK: 'META',
-  }),
-  /** Carrier code on the driver sign-in screen resolves to a tenant. */
-  tenantSlug: (slug: string): Gsi3 => ({
-    GSI3PK: `SLUG#${slug.trim().toLowerCase()}`,
-    GSI3SK: 'META',
-  }),
-  /** Refresh tokens are looked up by hash — the raw token is never stored. */
-  refreshTokenHash: (tokenHash: string): Gsi3 => ({
-    GSI3PK: `RTOKEN#${tokenHash}`,
     GSI3SK: 'META',
   }),
 } as const;

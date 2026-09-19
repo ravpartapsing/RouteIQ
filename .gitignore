@@ -27,3 +27,6 @@ infra/terraform/**/.build/
 apps/api/dist-lambda/
 
 apps/web/.env.development
+
+# seed output (contains demo passwords)
+.local/

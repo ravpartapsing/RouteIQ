@@ -1,15 +1,18 @@
 import type { FastifyInstance } from 'fastify';
-import { platformFeatures } from '@routeiq/data';
+import type { ClientConfigResponse } from '@routeiq/contracts';
+import { platformFeatures, resolveFeatures, tenants } from '@routeiq/data';
 
 /**
- * What the web and mobile apps need before sign-in: which features exist and where map tiles
- * come from. Tenant overrides are applied after login (Phase 1), on top of this.
+ * What the apps need to know is switched on. Anonymous: the platform switches. Signed in: the
+ * carrier's own overrides applied on top.
  *
  * `map` is null when maps are off, so a client never loads a tile style it will not use.
  */
 export async function clientConfig(app: FastifyInstance): Promise<void> {
-  app.get('/config', async () => {
-    const features = platformFeatures();
+  app.get('/config', async (request): Promise<ClientConfigResponse> => {
+    const platform = platformFeatures();
+    const tenant = request.auth ? await tenants.getTenant(request.auth.tenantId) : undefined;
+    const features = resolveFeatures(platform, tenant?.featureOverrides);
     return {
       features,
       map: features.maps

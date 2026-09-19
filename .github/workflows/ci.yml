@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typescript:
+    runs-on: ubuntu-latest
+    services:
+      # Integration tests run the real auth flows against this.
+      dynamodb:
+        image: amazon/dynamodb-local:2.5.4
+        ports: ['8200:8000']
+    env:
+      DDB_ENDPOINT: http://localhost:8200
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+      # Terraform builds the deployed table from this file; it must match table-definition.ts.
+      - name: Table definition in sync with Terraform
+        run: |
+          npx tsx scripts/emit-table-json.ts
+          git diff --exit-code infra/terraform/generated/table.json
+
+      - name: Wait for DynamoDB Local
+        run: |
+          for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:8200 && exit 0; sleep 1; done
+          exit 1
+
+      - name: Test
+        run: pnpm -r test
+
+      - name: Lambda bundle builds
+        run: pnpm --filter @routeiq/api build:lambda
+
+      - name: Web portal builds
+        run: pnpm --filter @routeiq/web build
+
+  flutter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Format
+        run: terraform fmt -check -recursive infra/terraform
+      - name: Validate
+        run: |
+          for dir in infra/terraform/bootstrap infra/terraform/envs/dev; do
+            terraform -chdir=$dir init -backend=false -input=false
+            terraform -chdir=$dir validate
+          done
