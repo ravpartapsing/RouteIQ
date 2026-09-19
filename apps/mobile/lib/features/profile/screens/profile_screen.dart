@@ -16,6 +16,8 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../data/models/driver_model.dart';
+import 'package:provider/provider.dart';
+import '../../../data/auth/auth_service.dart';
 import '../../../data/static/mock_data.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -53,6 +55,7 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final me = context.watch<AuthService>().me;
     return Container(
       color: AppColors.brandPrimary,
       padding: EdgeInsets.fromLTRB(
@@ -67,7 +70,7 @@ class _ProfileHeader extends StatelessWidget {
             radius: 34,
             backgroundColor: AppColors.white.withValues(alpha: 0.2),
             child: Text(
-              MockDataSource.driver.initials,
+              me?.initials ?? MockDataSource.driver.initials,
               style: AppTextStyles.h1.copyWith(color: AppColors.white),
             ),
           ),
@@ -75,11 +78,13 @@ class _ProfileHeader extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(MockDataSource.driver.fullName,
+              Text(me?.fullName ?? MockDataSource.driver.fullName,
                   style: AppTextStyles.h2.copyWith(color: AppColors.white)),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '${MockDataSource.driver.cdlClass}  ·  ${MockDataSource.driver.driverType}',
+                me != null
+                    ? '${me.driverCode}  ·  ${me.carrierName}'
+                    : '${MockDataSource.driver.cdlClass}  ·  ${MockDataSource.driver.driverType}',
                 style: AppTextStyles.bodySm.copyWith(color: AppColors.accentLight),
               ),
             ],

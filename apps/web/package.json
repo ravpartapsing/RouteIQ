@@ -11,6 +11,7 @@
     "dev:laptop": "vite --mode laptop"
   },
   "dependencies": {
+    "@routeiq/contracts": "workspace:^",
     "maplibre-gl": "^5",
     "react": "^19",
     "react-dom": "^19",

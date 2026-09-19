@@ -25,8 +25,9 @@ Everything sharing a `PK` is one collection, readable in a single query.
 | PK | SK | Item |
 |---|---|---|
 | `TENANT#<id>` | `META` · `SETTINGS#<area>` · `SEQ#<name>` | Carrier record, settings, number sequences |
-| `USER#<id>` | `META` · `SESSION#<tokenId>` | Web user + their live refresh tokens |
-| `DRIVER#<id>` | `META` · `CRED` · `HOS#<date>` · `SESSION#<tokenId>` | Driver, credentials, daily HOS |
+| `USER#<id>` | `META` · `CRED` · `SESSION#<id>` | Web user, credentials, live refresh sessions |
+| `DRIVER#<id>` | `META` · `CRED` · `HOS#<date>` · `SESSION#<id>` | Driver, credentials, daily HOS, sessions |
+| `UNIQUE#<kind>#<value>` | `META` | Uniqueness guard + lookup: `EMAIL`, `CARRIER_CODE`, `DRIVER_CODE` (value `<tenant>#<code>`) |
 | `TRUCK#<id>` | `META` · `POS#LATEST` | Truck + its current position |
 | `TRAILER#<id>` | `META` | |
 | `CUSTOMER#<id>` | `META` · `CONTACT#<id>` | |
@@ -59,14 +60,24 @@ reporting all day tops out around 2,880 pings, far inside the 10 GB partition li
 | 9 | Documents attached to anything | GSI2 | `ORDER#<id>` / `DOC#<date>#<id>` |
 | 10 | Settlements for a driver | GSI2 | `DRIVER#<id>` / `SETTLEMENT#<period>#<id>` |
 | 11 | Order by order number | GSI3 | `TENANT#<t>#ORDERNO#RQ-100234` |
-| 12 | Driver by dispatcher-issued code | GSI3 | `TENANT#<t>#DRIVERCODE#D-014` |
-| 13 | Web login by email (cross-tenant) | GSI3 | `EMAIL#<email>` |
-| 14 | Carrier code → tenant (driver sign-in) | GSI3 | `SLUG#<slug>` |
-| 15 | Refresh token by hash | GSI3 | `RTOKEN#<sha256>` |
+| 12 | Driver by driver code, within a carrier | table (guard) | `UNIQUE#DRIVER_CODE#<tenant>#D-0014` |
+| 13 | Web login by email (cross-tenant) | table (guard) | `UNIQUE#EMAIL#<email>` |
+| 14 | Carrier code → tenant (driver sign-in) | table (guard) | `UNIQUE#CARRIER_CODE#<code>` |
+| 15 | Refresh session | table | `<USER\|DRIVER>#<id>` / `SESSION#<sessionId>` — ids are inside the token |
 | 16 | **Expiry sweep** — CDL, medical, registration, insurance | GSI4 (sparse) | `TENANT#<t>#DUE#CDL` / `<date>#<id>` |
 | 17 | Invoice due dates / AR aging buckets | GSI4 (sparse) | `TENANT#<t>#DUE#INVOICE_DUE` / `<date>#<id>` |
 | 18 | GPS history for a truck on a day (IFTA, replay) | table | `PK = GPS#<truck>#<date>` |
 | 19 | Driver message thread, newest first | table | `PK = CONV#<t>#<driver>`, scan backwards |
+
+**Uniqueness is enforced with guard items, not GSI lookups.** DynamoDB has no unique
+constraint and GSI reads are eventually consistent, so two sign-ups racing for the same carrier
+code could both "see" it free. Instead the guard item is written with `attribute_not_exists` in
+the same transaction as the thing it guards, and it doubles as the lookup — one strongly
+consistent GetItem from email (or carrier code, or driver code) to its owner.
+
+**Credentials live in a separate `CRED` item**, never on the profile. Listing users or drivers
+through GSI1 therefore cannot return a password hash or activation-code hash, whatever a
+future developer projects.
 
 GSI4 is **sparse on purpose**: the keys are written only when there *is* a date to watch, so the
 nightly compliance sweep is a small query rather than a scan of the whole table.

@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { NAV } from '../lib/nav';
 import { useServer } from '../lib/server';
+import { useAuth, useMe } from '../lib/auth';
 import { API_BASE_URL } from '../lib/api';
 
 export function Shell() {
   const [collapsed, setCollapsed] = useState(false);
   const { state } = useServer();
+  const me = useMe();
   const mapsOn = state.kind === 'ok' && state.config.features.maps;
 
   return (
@@ -23,7 +25,7 @@ export function Shell() {
         </div>
         <div className="ml-auto flex items-center gap-4 px-4">
           <ConnectionPill />
-          <div className="grid h-8 w-8 place-items-center rounded-full bg-navy-700 text-xs font-medium text-white">RS</div>
+          <UserMenu />
         </div>
       </header>
 
@@ -41,6 +43,7 @@ export function Shell() {
                 )}
                 {group.items
                   .filter((item) => item.feature !== 'maps' || mapsOn)
+                  .filter((item) => !item.roles || item.roles.includes(me.principal.role))
                   .map((item) => (
                     <NavLink
                       key={item.path}
@@ -95,6 +98,39 @@ function ConnectionPill() {
     <div title={host} className="flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-700">
       <span className={`h-2 w-2 rounded-full ${dot}`} />
       {text}
+    </div>
+  );
+}
+
+function UserMenu() {
+  const me = useMe();
+  const { logout } = useAuth();
+  const [open, setOpen] = useState(false);
+  const p = me.principal;
+  const initials = `${p.firstName[0] ?? ''}${p.lastName[0] ?? ''}`.toUpperCase();
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-2 rounded-full pr-2 hover:bg-gray-100" aria-haspopup="menu" aria-expanded={open}>
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-navy-700 text-xs font-medium text-white">{initials}</span>
+        <span className="hidden text-sm font-medium text-gray-900 lg:inline">{p.firstName}</span>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div role="menu" className="absolute right-0 z-50 mt-2 w-60 rounded-lg border border-gray-200 bg-white py-2 text-sm shadow-lg">
+            <div className="px-4 pb-2">
+              <p className="font-medium">{p.firstName} {p.lastName}</p>
+              <p className="truncate text-gray-500">{p.email}</p>
+              <p className="mt-1 text-xs text-gray-400">{me.tenant.name} · {p.role.toLowerCase()}</p>
+            </div>
+            <div className="border-t border-gray-100 pt-1">
+              <button role="menuitem" onClick={() => void logout()} className="w-full px-4 py-2 text-left text-danger hover:bg-gray-50">
+                Sign out
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

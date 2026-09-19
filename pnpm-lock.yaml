@@ -78,6 +78,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@routeiq/contracts':
+        specifier: workspace:^
+        version: link:../../packages/contracts
       maplibre-gl:
         specifier: ^5
         version: 5.24.0

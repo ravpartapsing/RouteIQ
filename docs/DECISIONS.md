@@ -41,8 +41,15 @@ This is the single largest cost lever in the system — ~13 M writes/month inste
 Carrier code + driver code + one-time activation code, exchanged for a long-lived
 device-bound refresh token. No SMS provider, no per-login cost, nothing to bill per driver.
 
-**Consequence:** the existing `phone_login_screen.dart` and `otp_screen.dart` in the Flutter app
-are obsolete and get rewritten in Phase 1.
+Implemented in Phase 1:
+
+- Codes are 8 characters from Crockford base32 (no I/L/O/U to misread), shown as `XXXX-XXXX`.
+  ~40 bits is enough because a code is **single use, expires in 7 days, and is burned after 5
+  wrong tries**. Only its SHA-256 is stored; the portal shows it once.
+- Activation binds the driver to one device id. **Reissuing a code unbinds the old phone and ends
+  its sessions** — the answer to a lost phone. Deactivating a driver does the same.
+- Driver refresh tokens last 180 days; web users' 30. The phone/OTP screens are gone.
+- Web users invited by an admin use the same mechanism to set their first password.
 
 ## D6 — Reporting is not a DynamoDB query
 
@@ -97,3 +104,21 @@ testing. Set `VALHALLA_URL`, flip the switch.
 **Billable-miles caveat, unchanged:** US freight is invoiced on PC\*MILER miles and broker
 contracts name it. Irrelevant until you sell to brokers; the recorded mileage source keeps the
 option open.
+
+---
+
+## D8 — Sessions: short access tokens, rotating refresh tokens
+
+- **Access token:** HS256 JWT, 15 minutes. The signing secret is a SecureString in SSM Parameter
+  Store, read once per Lambda container — never in the function's configuration.
+- **Refresh token:** `rt1.<U|D>.<principalId>.<sessionId>.<secret>`. Only the secret's hash is
+  stored, so a table export yields nothing usable. It **rotates on every use**, conditional on the
+  old hash; presenting an already-rotated token is treated as theft and **revokes every session
+  that person has**.
+- Every refresh re-checks the person, so deactivation or a code reissue takes effect within one
+  access-token lifetime.
+- **Passwords:** scrypt (N=2¹⁵, r=8, p=1) from Node's standard library — no native module to break
+  on Lambda. 12+ characters, no composition rules (NIST 800-63B). 5 failures lock the account for
+  15 minutes. Unknown email and wrong password return the same message and take the same time.
+- **Web portal:** the refresh token sits in `localStorage` — fine for UAT on one Mac. Before a
+  public launch it should move to an httpOnly cookie on an API domain the portal shares.

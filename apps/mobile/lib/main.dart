@@ -11,9 +11,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import 'app/routes.dart';
 import 'app/theme.dart';
+import 'data/auth/auth_service.dart';
 
 void main() {
   // Ensure Flutter engine is fully initialised before touching platform APIs.
@@ -32,7 +34,12 @@ void main() {
     systemNavigationBarColor:  Colors.white,
   ));
 
-  runApp(const RouteIQDriverApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => AuthService(),
+      child: const RouteIQDriverApp(),
+    ),
+  );
 }
 
 /// Root widget — stateless because all mutable state lives inside GoRouter

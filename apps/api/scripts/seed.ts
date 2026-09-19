@@ -10,7 +10,6 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
-import { tenants } from '@routeiq/data';
 
 const target = process.argv.includes('--target=dev') ? 'dev' : 'local';
 if (target === 'dev') {
@@ -21,6 +20,9 @@ if (target === 'dev') {
 }
 process.env['LOG_LEVEL'] = 'silent';
 
+// Imported only now: the DynamoDB client reads its endpoint when the module loads, so a static
+// import would have pinned it to local before the target was chosen.
+const { tenants } = await import('@routeiq/data');
 const { buildApp } = await import('../src/app.js');
 const app = await buildApp();
 

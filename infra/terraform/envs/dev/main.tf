@@ -130,6 +130,21 @@ resource "aws_s3_bucket_lifecycle_configuration" "documents" {
 }
 
 # ---------------------------------------------------------------------------
+# JWT signing secret. SecureString in Parameter Store (free tier), read by the Lambda at cold
+# start — so it never appears in the function's configuration or the console.
+# ---------------------------------------------------------------------------
+resource "random_password" "jwt" {
+  length  = 64
+  special = false
+}
+
+resource "aws_ssm_parameter" "jwt_secret" {
+  name  = "/${var.name}/jwt-secret"
+  type  = "SecureString"
+  value = random_password.jwt.result
+}
+
+# ---------------------------------------------------------------------------
 # Lambda — the Fastify API, bundled by `pnpm --filter @routeiq/api build:lambda`.
 # ---------------------------------------------------------------------------
 data "archive_file" "api" {
@@ -177,6 +192,11 @@ resource "aws_iam_role_policy" "api_data" {
         Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
         Resource = "${aws_s3_bucket.documents.arn}/*"
       },
+      {
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameter"]
+        Resource = aws_ssm_parameter.jwt_secret.arn
+      },
     ]
   })
 }
@@ -204,6 +224,7 @@ resource "aws_lambda_function" "api" {
       TABLE_NAME           = aws_dynamodb_table.main.name
       S3_BUCKET            = aws_s3_bucket.documents.bucket
       CORS_ORIGINS         = join(",", var.cors_origins)
+      JWT_SECRET_PARAM     = aws_ssm_parameter.jwt_secret.name
       FEATURE_MAPS         = "true"
       FEATURE_ROUTING      = "false"
       FEATURE_MAP_MATCHING = "false"

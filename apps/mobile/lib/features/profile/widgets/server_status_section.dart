@@ -5,11 +5,13 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../data/api/api_client.dart';
+import '../../../data/auth/auth_service.dart';
 
 class ServerStatusSection extends StatefulWidget {
   const ServerStatusSection({super.key, this.client});
@@ -22,9 +24,13 @@ class ServerStatusSection extends StatefulWidget {
 
 class _ServerStatusSectionState extends State<ServerStatusSection> {
   late final ApiClient _api = widget.client ?? ApiClient();
-  late Future<ServerStatus> _status = _api.status();
+  late Future<ServerStatus> _status = _load();
 
-  void _retry() => setState(() => _status = _api.status());
+  // Signed in, /config includes the carrier's own feature overrides.
+  Future<ServerStatus> _load() async =>
+      _api.status(token: await context.read<AuthService>().accessToken().catchError((_) => null));
+
+  void _retry() => setState(() => _status = _load());
 
   @override
   Widget build(BuildContext context) {

@@ -10,6 +10,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../../data/auth/auth_service.dart';
 import '../../../app/routes.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -196,7 +198,10 @@ class _SupportSection extends StatelessWidget {
                 leading: const Icon(Icons.logout, color: AppColors.danger),
                 title: Text('Log Out',
                     style: AppTextStyles.body.copyWith(color: AppColors.danger)),
-                onTap: () => context.go(AppRoutes.phoneLogin),
+                onTap: () async {
+                  await context.read<AuthService>().logout();
+                  if (context.mounted) context.go(AppRoutes.activate);
+                },
               ),
             ],
           ),

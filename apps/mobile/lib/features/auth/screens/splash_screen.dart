@@ -8,6 +8,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../../data/auth/auth_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../app/routes.dart';
@@ -45,9 +47,12 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  void _navigateNext() {
+  // Checks the stored session while the logo shows. Offline, the saved session
+  // is kept, so the next launch with signal goes straight to Home.
+  Future<void> _navigateNext() async {
+    final signedIn = await context.read<AuthService>().restore().catchError((_) => false);
     if (!mounted) return;
-    context.go(AppRoutes.phoneLogin);
+    context.go(signedIn ? AppRoutes.home : AppRoutes.activate);
   }
 
   @override

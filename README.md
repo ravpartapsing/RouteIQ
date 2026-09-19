@@ -67,6 +67,18 @@ pnpm --filter @routeiq/web dev:laptop   # → the API on this Mac
 
 Open http://localhost:5173. The API's CORS allows exactly that origin.
 
+## Demo carrier
+
+```bash
+pnpm seed       # local DynamoDB
+pnpm seed:dev   # the AWS dev table
+```
+
+Both go through the real API handlers and print the sign-in details once: a web owner, a
+dispatcher invite code, and three drivers (carrier code `demo`, drivers `D-0001…D-0003`) with
+activation codes. The output is saved to `.local/seed-<target>.txt`, which is gitignored.
+Codes are single use; reissue them from the portal under Drivers → New code.
+
 ## Driver app builds
 
 The API address is baked in at build time:
@@ -84,10 +96,10 @@ Settings → **Server** in the app shows which API a build points at and whether
 apps/
   api/        Fastify. app.ts is host-agnostic; lambda.ts wraps it, local.ts serves it.
   web/        React portal: shell, server status, OSM map. Runs on the Mac.
-  mobile/     Flutter driver app — 15 of 34 screens, still on mock data
+  mobile/     Flutter driver app — real sign-in; loads, HOS, messages still mock
 packages/
   data/       Table definition + every key builder in the system
-  contracts/  Shared request/response schemas (not started)
+  contracts/  zod request/response schemas shared by API and web
 infra/docker/ Local stack
 scripts/      Table and bucket bootstrap
 docs/         Decisions, data model

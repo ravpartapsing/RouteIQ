@@ -13,6 +13,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_text_styles.dart';
+import 'package:provider/provider.dart';
+import '../../../data/auth/auth_service.dart';
 import '../../../data/static/mock_data.dart';
 import '../../../app/routes.dart';
 import '../widgets/active_load_card.dart';
@@ -39,7 +41,7 @@ class HomeScreen extends StatelessWidget {
             // ── App bar / header ─────────────────────────────────────────────
             SliverToBoxAdapter(
               child: _HomeHeader(
-                driverName: driver.firstName,
+                driverName: context.watch<AuthService>().me?.firstName ?? driver.firstName,
                 dateLabel: DateFormat('EEEE, MMM d').format(now),
                 hosLabel:  MockDataSource.hosStatusLabel,
                 hosProgress: hos.driveProgressFraction,
@@ -116,7 +118,7 @@ class _HomeHeader extends StatelessWidget {
                 ),
                 child: Center(
                   child: Text(
-                    MockDataSource.driver.initials,
+                    context.watch<AuthService>().me?.initials ?? MockDataSource.driver.initials,
                     style: const TextStyle(
                       color: AppColors.white,
                       fontWeight: FontWeight.w700,

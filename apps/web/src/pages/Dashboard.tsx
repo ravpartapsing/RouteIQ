@@ -1,16 +1,18 @@
 import { Link } from 'react-router-dom';
 import { useServer } from '../lib/server';
+import { useMe } from '../lib/auth';
 import { API_BASE_URL } from '../lib/api';
 import { LiveMap } from '../components/LiveMap';
 
 export function Dashboard() {
-  const { state, retry } = useServer();
+  const { state, reload: retry } = useServer();
+  const me = useMe();
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-sm text-gray-500">Loads, drivers and revenue appear here from Phase 2 onwards.</p>
+        <h1 className="text-2xl font-semibold">Good to see you, {me.principal.firstName}</h1>
+        <p className="text-sm text-gray-500">{me.tenant.name} · loads and revenue appear here from Phase 2 onwards.</p>
       </div>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5">

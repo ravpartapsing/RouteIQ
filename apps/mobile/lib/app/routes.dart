@@ -10,8 +10,7 @@
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/screens/splash_screen.dart';
-import '../features/auth/screens/phone_login_screen.dart';
-import '../features/auth/screens/otp_screen.dart';
+import '../features/auth/screens/activate_screen.dart';
 import '../features/home/screens/home_screen.dart';
 import '../features/loads/screens/loads_list_screen.dart';
 import '../features/loads/screens/load_detail_screen.dart';
@@ -29,8 +28,7 @@ import '../shared/widgets/main_shell.dart';
 /// All route path constants — prevents magic strings in widget code.
 abstract final class AppRoutes {
   static const String splash         = '/';
-  static const String phoneLogin     = '/login';
-  static const String otp            = '/login/otp';
+  static const String activate       = '/activate';
 
   // Main shell routes (bottom nav)
   static const String home           = '/home';
@@ -58,15 +56,8 @@ GoRouter buildRouter() {
         builder: (_, __) => const SplashScreen(),
       ),
       GoRoute(
-        path:    AppRoutes.phoneLogin,
-        builder: (_, __) => const PhoneLoginScreen(),
-      ),
-      GoRoute(
-        path:    AppRoutes.otp,
-        builder: (context, state) {
-          final phone = state.uri.queryParameters['phone'] ?? '';
-          return OtpScreen(phoneNumber: phone);
-        },
+        path:    AppRoutes.activate,
+        builder: (_, __) => const ActivateScreen(),
       ),
 
       // ── Main shell with bottom nav ─────────────────────────────────────────

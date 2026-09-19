@@ -3,6 +3,7 @@ terraform {
   required_providers {
     aws     = { source = "hashicorp/aws", version = "~> 6.0" }
     archive = { source = "hashicorp/archive", version = "~> 2.7" }
+    random  = { source = "hashicorp/random", version = "~> 3.6" }
   }
 
   # S3-native locking (use_lockfile) — no DynamoDB lock table to pay for.

@@ -1,3 +1,5 @@
+import type { UserRole } from '@routeiq/contracts';
+
 /** Sidebar structure from the design doc §2. `phase` marks what is not built yet. */
 export interface NavItem {
   path: string;
@@ -6,6 +8,8 @@ export interface NavItem {
   phase?: number;
   /** Hidden entirely when the named feature switch is off. */
   feature?: 'maps';
+  /** Only these roles see it. */
+  roles?: UserRole[];
 }
 
 export const NAV: Array<{ section: string; items: NavItem[] }> = [
@@ -21,7 +25,7 @@ export const NAV: Array<{ section: string; items: NavItem[] }> = [
   {
     section: 'FLEET',
     items: [
-      { path: '/drivers', label: 'Drivers', icon: '◐', phase: 2 },
+      { path: '/drivers', label: 'Drivers', icon: '◐' },
       { path: '/assets', label: 'Trucks & Trailers', icon: '▭', phase: 2 },
     ],
   },
@@ -40,7 +44,8 @@ export const NAV: Array<{ section: string; items: NavItem[] }> = [
     section: 'SYSTEM',
     items: [
       { path: '/reports', label: 'Reports', icon: '▥', phase: 11 },
-      { path: '/settings', label: 'Settings', icon: '⚙', phase: 1 },
+      { path: '/team', label: 'Team', icon: '☺', roles: ['OWNER', 'ADMIN'] },
+      { path: '/settings', label: 'Settings', icon: '⚙' },
     ],
   },
 ];
