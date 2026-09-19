@@ -14,6 +14,9 @@ import { Activate } from './pages/Activate';
 import { Drivers } from './pages/Drivers';
 import { Team } from './pages/Team';
 import { Settings } from './pages/Settings';
+import { Fleet } from './pages/Fleet';
+import { Customers } from './pages/Customers';
+import { Locations } from './pages/Locations';
 
 function Splash() {
   return <div className="grid h-full place-items-center text-sm text-gray-400">Loading…</div>;
@@ -49,6 +52,9 @@ createRoot(document.getElementById('root')!).render(
               <Route path="drivers" element={<Drivers />} />
               <Route path="team" element={<Team />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="fleet" element={<Fleet />} />
+              <Route path="customers" element={<Customers />} />
+              <Route path="locations" element={<Locations />} />
               <Route path="*" element={<NotYet />} />
             </Route>
           </Routes>

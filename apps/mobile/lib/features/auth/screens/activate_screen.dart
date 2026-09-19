@@ -117,6 +117,8 @@ class _ActivateScreenState extends State<ActivateScreen> {
         foregroundColor: AppColors.gray900,
         elevation: 0,
         automaticallyImplyLeading: false,
+        // White header: the app-wide light status-bar icons would vanish against it.
+        systemOverlayStyle: SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
         title: const Text('Sign In', style: AppTextStyles.h3),
       ),
       body: SafeArea(

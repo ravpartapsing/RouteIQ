@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import {
   CreateDriverRequest,
+  UpdateDriverRequest,
   UpdateStatusRequest,
   type CreateDriverResponse,
   type Driver,
@@ -24,6 +25,7 @@ const toDriver = (d: DriverRecord): Driver => ({
   cdlNumber: d.cdlNumber,
   cdlState: d.cdlState,
   cdlExpiry: d.cdlExpiry,
+  medicalCardExpiry: d.medicalCardExpiry ?? null,
   status: d.status,
   activatedAt: d.activatedAt,
   deviceName: d.deviceName,
@@ -71,6 +73,7 @@ export async function driverRoutes(app: FastifyInstance): Promise<void> {
           cdlNumber: body.cdlNumber ?? null,
           cdlState: body.cdlState ?? null,
           cdlExpiry: body.cdlExpiry ?? null,
+          medicalCardExpiry: body.medicalCardExpiry ?? null,
         },
         activationHash: sha256(code),
         activationExpiresAt: expiresAt,
@@ -83,6 +86,27 @@ export async function driverRoutes(app: FastifyInstance): Promise<void> {
       if (body.driverCode) throw conflict('DRIVER_CODE_TAKEN', 'That driver code is already used', 'driverCode');
     }
     throw new ApiError(500, 'DRIVER_CODE_EXHAUSTED', 'Could not allocate a driver code');
+  });
+
+  app.put('/v1/drivers/:id', { preHandler: managers }, async (request) => {
+    const body = parse(UpdateDriverRequest, request.body);
+    const d = await load(authOf(request).tenantId, (request.params as { id: string }).id);
+    const result = await drivers.updateDriverProfile(
+      d,
+      {
+        firstName: body.firstName,
+        lastName: body.lastName,
+        phone: body.phone ?? null,
+        email: body.email ?? null,
+        cdlNumber: body.cdlNumber ?? null,
+        cdlState: body.cdlState ?? null,
+        cdlExpiry: body.cdlExpiry ?? null,
+        medicalCardExpiry: body.medicalCardExpiry ?? null,
+      },
+      new Date().toISOString(),
+    );
+    if (!result.ok) throw conflict('STALE', 'This driver was changed by someone else — reload and try again');
+    return toDriver(result.driver);
   });
 
   /** New code; the old device is unbound and signed out. Used for a new or lost phone. */

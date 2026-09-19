@@ -26,10 +26,10 @@ Everything sharing a `PK` is one collection, readable in a single query.
 |---|---|---|
 | `TENANT#<id>` | `META` · `SETTINGS#<area>` · `SEQ#<name>` | Carrier record, settings, number sequences |
 | `USER#<id>` | `META` · `CRED` · `SESSION#<id>` | Web user, credentials, live refresh sessions |
-| `DRIVER#<id>` | `META` · `CRED` · `HOS#<date>` · `SESSION#<id>` | Driver, credentials, daily HOS, sessions |
+| `DRIVER#<id>` | `META` · `CRED` · `DUE#<kind>` · `HOS#<date>` · `SESSION#<id>` | Driver, credentials, CDL/medical dates, HOS, sessions |
 | `UNIQUE#<kind>#<value>` | `META` | Uniqueness guard + lookup: `EMAIL`, `CARRIER_CODE`, `DRIVER_CODE` (value `<tenant>#<code>`) |
-| `TRUCK#<id>` | `META` · `POS#LATEST` | Truck + its current position |
-| `TRAILER#<id>` | `META` | |
+| `TRUCK#<id>` | `META` · `POS#LATEST` · `DUE#<kind>` | Truck, current position, its expiry dates |
+| `TRAILER#<id>` | `META` · `DUE#<kind>` | |
 | `CUSTOMER#<id>` | `META` · `CONTACT#<id>` | |
 | `LOCATION#<id>` | `META` | Facility, with the geocode cached on it |
 | `ORDER#<id>` | `META` · `STOP#<seq>` · `ACC#<id>` · `EVENT#<ts>#<id>` | **Order, stops, accessorials and status trail in one read** |
@@ -64,7 +64,7 @@ reporting all day tops out around 2,880 pings, far inside the 10 GB partition li
 | 13 | Web login by email (cross-tenant) | table (guard) | `UNIQUE#EMAIL#<email>` |
 | 14 | Carrier code → tenant (driver sign-in) | table (guard) | `UNIQUE#CARRIER_CODE#<code>` |
 | 15 | Refresh session | table | `<USER\|DRIVER>#<id>` / `SESSION#<sessionId>` — ids are inside the token |
-| 16 | **Expiry sweep** — CDL, medical, registration, insurance | GSI4 (sparse) | `TENANT#<t>#DUE#CDL` / `<date>#<id>` |
+| 16 | **Expiry sweep** — CDL, medical, registration, insurance, inspection | GSI4 (sparse), on `DUE#<kind>` items | `TENANT#<t>#DUE#CDL` / `<date>#<id>` |
 | 17 | Invoice due dates / AR aging buckets | GSI4 (sparse) | `TENANT#<t>#DUE#INVOICE_DUE` / `<date>#<id>` |
 | 18 | GPS history for a truck on a day (IFTA, replay) | table | `PK = GPS#<truck>#<date>` |
 | 19 | Driver message thread, newest first | table | `PK = CONV#<t>#<driver>`, scan backwards |
@@ -78,6 +78,12 @@ consistent GetItem from email (or carrier code, or driver code) to its owner.
 **Credentials live in a separate `CRED` item**, never on the profile. Listing users or drivers
 through GSI1 therefore cannot return a password hash or activation-code hash, whatever a
 future developer projects.
+
+**Each expiry date is its own `DUE#<kind>` item**, not an attribute on the profile. An index
+entry holds one key per item, and a truck has three dates (registration, insurance, annual
+inspection). The due items live in the entity's own collection, carry the GSI4 keys, and are
+written in the same transaction as the entity — cleared when the date is cleared or the entity
+is made inactive. `GET /v1/compliance/due` is one GSI4 query per kind.
 
 GSI4 is **sparse on purpose**: the keys are written only when there *is* a date to watch, so the
 nightly compliance sweep is a small query rather than a scan of the whole table.

@@ -10,6 +10,9 @@ export default defineConfig({
       AWS_ACCESS_KEY_ID: 'local',
       AWS_SECRET_ACCESS_KEY: 'local',
       JWT_SECRET: 'test-secret-that-is-long-enough-for-hs256-signing',
+      // No network in tests: documents go to an in-memory store, locations are not geocoded.
+      STORAGE: 'memory',
+      GEOCODER: 'none',
     },
     globalSetup: ['./test/global-setup.ts'],
     // One table for the run; files share it and keep apart by using unique carrier codes.

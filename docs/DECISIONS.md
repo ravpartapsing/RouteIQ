@@ -122,3 +122,28 @@ option open.
   15 minutes. Unknown email and wrong password return the same message and take the same time.
 - **Web portal:** the refresh token sits in `localStorage` — fine for UAT on one Mac. Before a
   public launch it should move to an httpOnly cookie on an API domain the portal shares.
+
+---
+
+## D9 — Documents go straight to S3; the API only signs and checks
+
+Upload is three calls: `upload-url` (the API checks the entity belongs to the carrier, the type is
+PDF/JPEG/PNG/HEIC/WebP and the size ≤ 20 MB, then signs a 10-minute PUT with **content type and
+length in the signature**), the client PUTs to S3, then `complete` (the API HEADs the object and
+**rejects and deletes it if the size differs** from what was approved). Downloads are 5-minute
+signed GETs. Bytes never pass through Lambda — no 6 MB payload limit, no Lambda time spent
+shovelling files.
+
+A document record starts `PENDING` with a one-day TTL, so abandoned uploads clean themselves up.
+
+**Gotcha, fixed:** recent AWS SDK v3 releases sign a CRC32 of the *empty* body into presigned
+PUT URLs, so every real upload fails. The S3 client sets `requestChecksumCalculation:
+'WHEN_REQUIRED'`. Tests use an in-memory store, so this was caught by a manual round trip
+against LocalStack, then confirmed on real S3 — which also refuses a larger body on the same URL.
+
+## D10 — Geocoding: US Census, once per address
+
+A location is geocoded by the Census Bureau geocoder (free, no key) when it is created or its
+address changes, and the result is cached on the item. Unchanged address → no call. A pin set by
+hand wins. A slow or failed lookup never blocks saving: the location is stored without
+coordinates and the portal says so.

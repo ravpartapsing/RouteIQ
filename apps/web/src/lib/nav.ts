@@ -26,12 +26,15 @@ export const NAV: Array<{ section: string; items: NavItem[] }> = [
     section: 'FLEET',
     items: [
       { path: '/drivers', label: 'Drivers', icon: '◐' },
-      { path: '/assets', label: 'Trucks & Trailers', icon: '▭', phase: 2 },
+      { path: '/fleet', label: 'Trucks & Trailers', icon: '▭' },
     ],
   },
   {
     section: 'CUSTOMERS',
-    items: [{ path: '/customers', label: 'Customers', icon: '◇', phase: 2 }],
+    items: [
+      { path: '/customers', label: 'Customers', icon: '◇' },
+      { path: '/locations', label: 'Locations', icon: '⌖' },
+    ],
   },
   {
     section: 'FINANCE',

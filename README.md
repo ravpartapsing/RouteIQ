@@ -14,7 +14,7 @@ Local development needs no AWS account and no network access.
 cp .env.example .env
 pnpm install
 pnpm up                 # DynamoDB Local + LocalStack S3 + a table browser
-pnpm bootstrap:local    # create the table, its 4 GSIs, and the bucket
+pnpm bootstrap:local    # create the table, its 4 GSIs, and the bucket (with CORS)
 pnpm dev                # api on http://localhost:8180
 ```
 

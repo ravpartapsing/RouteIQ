@@ -42,6 +42,7 @@ export const Driver = z.object({
   cdlNumber: z.string().nullable(),
   cdlState: z.string().nullable(),
   cdlExpiry: z.string().nullable(),
+  medicalCardExpiry: z.string().nullable(),
   status: PersonStatus,
   /** When the driver's current device was activated; null until they sign in. */
   activatedAt: z.string().nullable(),
@@ -68,11 +69,25 @@ export const CreateDriverRequest = z.object({
   cdlNumber: z.string().trim().max(30).optional(),
   cdlState: UsState.optional(),
   cdlExpiry: IsoDate.optional(),
+  medicalCardExpiry: IsoDate.optional(),
 });
 export type CreateDriverRequest = z.infer<typeof CreateDriverRequest>;
 
 export const CreateDriverResponse = z.object({ driver: Driver, activation: IssuedCode });
 export type CreateDriverResponse = z.infer<typeof CreateDriverResponse>;
+
+/** Profile edit. Omitted fields are cleared, so the form always sends the whole profile. */
+export const UpdateDriverRequest = z.object({
+  firstName: Name,
+  lastName: Name,
+  phone: z.string().trim().max(30).nullable().optional(),
+  email: Email.nullable().optional(),
+  cdlNumber: z.string().trim().max(30).nullable().optional(),
+  cdlState: UsState.nullable().optional(),
+  cdlExpiry: IsoDate.nullable().optional(),
+  medicalCardExpiry: IsoDate.nullable().optional(),
+});
+export type UpdateDriverRequest = z.infer<typeof UpdateDriverRequest>;
 
 export const UpdateStatusRequest = z.object({ status: z.enum(['ACTIVE', 'INACTIVE']) });
 export type UpdateStatusRequest = z.infer<typeof UpdateStatusRequest>;

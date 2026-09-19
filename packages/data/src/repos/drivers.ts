@@ -1,15 +1,23 @@
-import { driverCodeGuardValue, gsi1, gsi4, key, sortableName } from '../keys.js';
+import { gsi1, key, scopedGuardValue, sortableName } from '../keys.js';
+import { syncDues } from './dues.js';
 import { getItem, nextSequence, put, queryIndex, transact, tableName, type TransactItem } from '../db.js';
 import { emptyCredential, strip, type DriverRecord, type PersonStatus } from './types.js';
 
 const STATUSES: PersonStatus[] = ['ACTIVE', 'PENDING', 'INACTIVE'];
 
 function driverIndexes(d: DriverRecord) {
-  return {
-    ...gsi1.byStatus(d.tenantId, 'DRIVER', d.status, sortableName(d.lastName, d.firstName), d.id),
-    // Sparse: only drivers with a CDL expiry appear in the nightly compliance sweep.
-    ...(d.cdlExpiry ? gsi4.dueOn(d.tenantId, 'CDL', d.cdlExpiry, d.id) : {}),
-  };
+  return gsi1.byStatus(d.tenantId, 'DRIVER', d.status, sortableName(d.lastName, d.firstName), d.id);
+}
+
+/** CDL and medical-card dates as DUE items; an inactive driver has nothing to chase. */
+export function driverDues(d: DriverRecord): TransactItem[] {
+  const active = d.status !== 'INACTIVE';
+  return syncDues(
+    { tenantId: d.tenantId, entityType: 'DRIVER', entityId: d.id, label: `${d.firstName} ${d.lastName} (${d.driverCode})` },
+    key.driver(d.id).PK,
+    ['CDL', 'MEDICAL'],
+    active ? { CDL: d.cdlExpiry, MEDICAL: d.medicalCardExpiry } : {},
+  );
 }
 
 export async function getDriver(driverId: string): Promise<DriverRecord | undefined> {
@@ -18,7 +26,7 @@ export async function getDriver(driverId: string): Promise<DriverRecord | undefi
 
 export async function getDriverByCode(tenantId: string, driverCode: string): Promise<DriverRecord | undefined> {
   const guard = await getItem<{ ownerId: string }>(
-    key.unique('DRIVER_CODE', driverCodeGuardValue(tenantId, driverCode)),
+    key.unique('DRIVER_CODE', scopedGuardValue(tenantId, driverCode)),
   );
   return guard ? getDriver(guard.ownerId) : undefined;
 }
@@ -55,7 +63,7 @@ export async function createDriver(input: {
   const result = await transact([
     put(
       {
-        ...key.unique('DRIVER_CODE', driverCodeGuardValue(driver.tenantId, driver.driverCode)),
+        ...key.unique('DRIVER_CODE', scopedGuardValue(driver.tenantId, driver.driverCode)),
         type: 'UNIQUE',
         ownerId: driver.id,
         tenantId: driver.tenantId,
@@ -73,6 +81,7 @@ export async function createDriver(input: {
       },
       true,
     ),
+    ...driverDues(driver),
   ]);
   return result.ok ? { ok: true, driver } : { ok: false, conflict: 'DRIVER_CODE' };
 }
@@ -94,7 +103,7 @@ function metaUpdate(d: DriverRecord, changes: Partial<DriverRecord>, now: string
       TableName: tableName(),
       Key: key.driver(d.id),
       UpdateExpression:
-        'SET #s = :s, activatedAt = :a, deviceName = :d, GSI1PK = :pk, GSI1SK = :sk, updatedAt = :now',
+        'SET #s = :s, activatedAt = :a, deviceName = :d, GSI1PK = :pk, GSI1SK = :sk, updatedAt = :now REMOVE GSI4PK, GSI4SK',
       ConditionExpression: 'attribute_exists(PK)',
       ExpressionAttributeNames: names,
       ExpressionAttributeValues: values,
@@ -141,5 +150,27 @@ export async function reissueDriverCode(d: DriverRecord, activationHash: string,
 }
 
 export async function setDriverStatus(d: DriverRecord, status: PersonStatus, now: string) {
-  await transact([metaUpdate(d, { status }, now)]);
+  await transact([metaUpdate(d, { status }, now), ...driverDues({ ...d, status })]);
+}
+
+export type DriverProfileFields = Pick<
+  DriverRecord,
+  'firstName' | 'lastName' | 'phone' | 'email' | 'cdlNumber' | 'cdlState' | 'cdlExpiry' | 'medicalCardExpiry'
+>;
+
+/** Profile edit. Conditional on updatedAt, so two dispatchers cannot silently overwrite each other. */
+export async function updateDriverProfile(d: DriverRecord, fields: DriverProfileFields, now: string) {
+  const next: DriverRecord = { ...d, ...fields, updatedAt: now };
+  const result = await transact([
+    {
+      Put: {
+        TableName: tableName(),
+        Item: { ...key.driver(d.id), type: 'DRIVER', ...driverIndexes(next), ...next },
+        ConditionExpression: 'updatedAt = :prev',
+        ExpressionAttributeValues: { ':prev': d.updatedAt },
+      },
+    },
+    ...driverDues(next),
+  ]);
+  return result.ok ? { ok: true as const, driver: next } : { ok: false as const };
 }

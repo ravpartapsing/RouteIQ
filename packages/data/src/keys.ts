@@ -26,12 +26,18 @@ export const ENTITY = {
 export type EntityName = (typeof ENTITY)[keyof typeof ENTITY];
 
 /** Values that must be unique. Tenant-scoped kinds embed the tenant id in the value. */
-export type UniqueKind = 'EMAIL' | 'CARRIER_CODE' | 'DRIVER_CODE';
+export type UniqueKind = 'EMAIL' | 'CARRIER_CODE' | 'DRIVER_CODE' | 'TRUCK_UNIT' | 'TRAILER_UNIT';
 
-/** Guard value for a driver code, which is only unique within one carrier. */
-export function driverCodeGuardValue(tenantId: string, driverCode: string): string {
-  return `${tenantId}#${driverCode}`;
+/** Guard value for something unique only within one carrier (driver code, unit number). */
+export function scopedGuardValue(tenantId: string, value: string): string {
+  return `${tenantId}#${value}`;
 }
+
+/** @deprecated use scopedGuardValue */
+export const driverCodeGuardValue = scopedGuardValue;
+
+/** Things that fall due, each tracked as its own item so one entity can have several. */
+export type DueKind = 'CDL' | 'MEDICAL' | 'REGISTRATION' | 'INSURANCE' | 'INSPECTION' | 'INVOICE_DUE';
 
 export interface Key {
   PK: string;
@@ -210,6 +216,13 @@ export const key = {
     PK: `UNIQUE#${kind}#${value.trim().toUpperCase()}`,
     SK: 'META',
   }),
+
+  /**
+   * One date that falls due on an entity — a truck's registration, a driver's CDL. Lives in the
+   * entity's own collection and carries the sparse GSI4 keys. Separate items because an index
+   * entry holds one date, and a truck has three.
+   */
+  due: (entityPk: string, kind: DueKind): Key => ({ PK: entityPk, SK: `DUE#${kind}` }),
 
   /** Write-once guard so a retried mobile upload never double-posts a delivery. */
   idempotency: (scope: string, idempotencyKey: string): Key => ({

@@ -3,3 +3,4 @@ export * from './keys.js';
 export * from './client.js';
 export * from './features.js';
 export * from './repos/index.js';
+export { transact } from './db.js';

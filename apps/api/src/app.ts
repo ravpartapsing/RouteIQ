@@ -10,6 +10,9 @@ import { meRoutes } from './routes/me.js';
 import { tenantRoutes } from './routes/tenant.js';
 import { userRoutes } from './routes/users.js';
 import { driverRoutes } from './routes/drivers.js';
+import { fleetRoutes } from './routes/fleet.js';
+import { documentRoutes } from './routes/documents.js';
+import { complianceRoutes } from './routes/compliance.js';
 
 /**
  * The whole API, as a plain Fastify instance.
@@ -67,6 +70,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(tenantRoutes);
   await app.register(userRoutes);
   await app.register(driverRoutes);
+  await app.register(fleetRoutes);
+  await app.register(documentRoutes);
+  await app.register(complianceRoutes);
 
   return app;
 }

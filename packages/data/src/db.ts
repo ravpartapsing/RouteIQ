@@ -59,6 +59,57 @@ export async function queryIndex<T>(index: 'GSI1' | 'GSI2' | 'GSI3' | 'GSI4', pk
   return items;
 }
 
+/** Index query with a sort-key upper bound — "everything due on or before this date". */
+export async function queryIndexUpTo<T>(index: 'GSI1' | 'GSI2' | 'GSI3' | 'GSI4', pk: string, skMax: string): Promise<T[]> {
+  const items: T[] = [];
+  let start: Record<string, unknown> | undefined;
+  do {
+    const out = await ddb.send(
+      new QueryCommand({
+        TableName: tableName(),
+        IndexName: index,
+        KeyConditionExpression: `${index}PK = :pk AND ${index}SK <= :max`,
+        ExpressionAttributeValues: { ':pk': pk, ':max': skMax },
+        ExclusiveStartKey: start,
+      }),
+    );
+    items.push(...((out.Items ?? []) as T[]));
+    start = out.LastEvaluatedKey;
+  } while (start);
+  return items;
+}
+
+/** Index query with a sort-key prefix — "this customer's documents". */
+export async function queryIndexPrefix<T>(index: 'GSI1' | 'GSI2' | 'GSI3' | 'GSI4', pk: string, skPrefix: string): Promise<T[]> {
+  const items: T[] = [];
+  let start: Record<string, unknown> | undefined;
+  do {
+    const out = await ddb.send(
+      new QueryCommand({
+        TableName: tableName(),
+        IndexName: index,
+        KeyConditionExpression: `${index}PK = :pk AND begins_with(${index}SK, :p)`,
+        ExpressionAttributeValues: { ':pk': pk, ':p': skPrefix },
+        ScanIndexForward: false,
+        ExclusiveStartKey: start,
+      }),
+    );
+    items.push(...((out.Items ?? []) as T[]));
+    start = out.LastEvaluatedKey;
+  } while (start);
+  return items;
+}
+
+export function del(key: Key, condition?: { expression: string; values: Record<string, unknown> }): TransactItem {
+  return {
+    Delete: {
+      TableName: tableName(),
+      Key: key,
+      ...(condition ? { ConditionExpression: condition.expression, ExpressionAttributeValues: condition.values } : {}),
+    },
+  };
+}
+
 /**
  * Runs a transaction and reports *which* condition failed, by item index, so callers can tell
  * "that email is taken" from "that carrier code is taken" without a second read.

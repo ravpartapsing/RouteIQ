@@ -20,9 +20,9 @@ jobs:
     env:
       DDB_ENDPOINT: http://localhost:8200
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -57,9 +57,12 @@ jobs:
       run:
         working-directory: apps/mobile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      # Pinned to the SDK used locally: `flutter analyze` fails on new lints, so an unpinned
+      # "latest stable" makes CI and the developer's machine disagree about the same code.
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: 3.41.6
           channel: stable
           cache: true
       - run: flutter pub get
@@ -68,7 +71,7 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: hashicorp/setup-terraform@v3
       - name: Format
         run: terraform fmt -check -recursive infra/terraform

@@ -46,6 +46,7 @@ export interface DriverRecord {
   cdlNumber: string | null;
   cdlState: string | null;
   cdlExpiry: string | null;
+  medicalCardExpiry: string | null;
   status: PersonStatus;
   activatedAt: string | null;
   deviceName: string | null;

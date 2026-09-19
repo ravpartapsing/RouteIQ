@@ -3,6 +3,9 @@ import type { CreateDriverResponse, Driver } from '@routeiq/contracts';
 import { request } from '../lib/api';
 import { useMe } from '../lib/auth';
 import { Alert, Badge, Button, Field, IssuedCode, Modal, PageHeader, useFormErrors } from '../components/ui';
+import { Drawer, Facts } from '../components/Drawer';
+import { DocumentsPanel } from '../components/DocumentsPanel';
+import { expiryTone, formValues } from '../lib/forms';
 
 type Issued = { driver: Driver; code: string; expiresAt: string };
 
@@ -19,6 +22,8 @@ export function Drivers() {
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [issued, setIssued] = useState<Issued | null>(null);
+  const [viewing, setViewing] = useState<Driver | null>(null);
+  const [editing, setEditing] = useState<Driver | null>(null);
 
   const load = useCallback(() => {
     request<{ items: Driver[] }>('GET', '/v1/drivers')
@@ -77,20 +82,17 @@ export function Drivers() {
             )}
             {items?.map((d) => {
               const [tone, label] = STATUS[d.status];
-              const cdlSoon = d.cdlExpiry && new Date(d.cdlExpiry).getTime() - Date.now() < 60 * 86_400_000;
               return (
-                <tr key={d.id} className="border-b border-gray-100 last:border-0">
+                <tr key={d.id} onClick={() => setViewing(d)} className="cursor-pointer border-b border-gray-100 last:border-0 hover:bg-gray-50">
                   <td className="px-4 py-3 font-mono text-gray-700">{d.driverCode}</td>
                   <td className="px-4 py-3 font-medium">{d.firstName} {d.lastName}</td>
                   <td className="px-4 py-3 text-gray-600">
                     {d.cdlState ?? '—'}
-                    {d.cdlExpiry && (
-                      <span className={`ml-2 text-xs ${cdlSoon ? 'text-warning' : 'text-gray-400'}`}>exp {d.cdlExpiry}</span>
-                    )}
+                    {d.cdlExpiry && <span className={`ml-2 text-xs ${expiryTone(d.cdlExpiry)}`}>exp {d.cdlExpiry}</span>}
                   </td>
                   <td className="px-4 py-3"><Badge tone={tone}>{label}</Badge></td>
                   <td className="px-4 py-3 text-gray-500">{d.deviceName ?? '—'}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     {canManage && d.status !== 'INACTIVE' && (
                       <>
                         <Button variant="ghost" onClick={() => void act(d, 'code')}>New code</Button>
@@ -108,6 +110,38 @@ export function Drivers() {
         </table>
       </div>
 
+      {viewing && (
+        <Drawer
+          title={`${viewing.firstName} ${viewing.lastName}`}
+          subtitle={`${viewing.driverCode} · ${STATUS[viewing.status][1]}`}
+          onClose={() => setViewing(null)}
+          actions={canManage && <Button variant="secondary" onClick={() => setEditing(viewing)}>Edit</Button>}
+        >
+          <Facts
+            items={[
+              ['Phone', viewing.phone],
+              ['Email', viewing.email],
+              ['CDL', viewing.cdlNumber && `${viewing.cdlNumber}${viewing.cdlState ? ` (${viewing.cdlState})` : ''}`],
+              ['CDL expiry', <span className={expiryTone(viewing.cdlExpiry)}>{viewing.cdlExpiry ?? '—'}</span>],
+              ['Medical card expiry', <span className={expiryTone(viewing.medicalCardExpiry)}>{viewing.medicalCardExpiry ?? '—'}</span>],
+              ['Device', viewing.deviceName],
+              ['Signed in since', viewing.activatedAt && new Date(viewing.activatedAt).toLocaleString()],
+            ]}
+          />
+          <DocumentsPanel entityType="DRIVER" entityId={viewing.id} types={['CDL', 'MEDICAL_CARD', 'OTHER']} />
+        </Drawer>
+      )}
+      {editing && (
+        <EditDriver
+          driver={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(d) => {
+            setEditing(null);
+            setViewing(d);
+            load();
+          }}
+        />
+      )}
       {adding && (
         <AddDriver
           onClose={() => setAdding(false)}
@@ -148,7 +182,7 @@ function AddDriver({ onClose, onCreated }: { onClose: () => void; onCreated: (r:
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const body: Record<string, string> = {};
-    for (const k of ['firstName', 'lastName', 'driverCode', 'phone', 'email', 'cdlNumber', 'cdlState', 'cdlExpiry']) {
+    for (const k of ['firstName', 'lastName', 'driverCode', 'phone', 'email', 'cdlNumber', 'cdlState', 'cdlExpiry', 'medicalCardExpiry']) {
       const v = String(f.get(k) ?? '').trim();
       if (v) body[k] = v;
     }
@@ -182,9 +216,57 @@ function AddDriver({ onClose, onCreated }: { onClose: () => void; onCreated: (r:
           <Field label="State" name="cdlState" maxLength={2} placeholder="TX" error={fe['cdlState']} />
           <Field label="CDL expiry" name="cdlExpiry" type="date" error={fe['cdlExpiry']} />
         </div>
+        <Field label="Medical card expiry" name="medicalCardExpiry" type="date" error={fe['medicalCardExpiry']} />
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button type="submit" busy={busy}>Add and get code</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function EditDriver({ driver, onClose, onSaved }: { driver: Driver; onClose: () => void; onSaved: (d: Driver) => void }) {
+  const errors = useFormErrors();
+  const [busy, setBusy] = useState(false);
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    errors.clear();
+    setBusy(true);
+    try {
+      onSaved(await request<Driver>('PUT', `/v1/drivers/${driver.id}`, formValues(e.currentTarget)));
+    } catch (err) {
+      errors.set(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const fe = errors.fields;
+  const d = driver;
+  return (
+    <Modal title={`Edit ${d.firstName} ${d.lastName}`} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-3" noValidate>
+        {errors.message && <Alert>{errors.message}</Alert>}
+        <p className="text-sm text-gray-500">
+          Driver code <span className="font-mono">{d.driverCode}</span> can't change — the driver signs in with it.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="First name" name="firstName" required defaultValue={d.firstName} error={fe['firstName']} />
+          <Field label="Last name" name="lastName" required defaultValue={d.lastName} error={fe['lastName']} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Phone" name="phone" type="tel" defaultValue={d.phone ?? ''} error={fe['phone']} />
+          <Field label="Email" name="email" type="email" defaultValue={d.email ?? ''} error={fe['email']} />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="CDL number" name="cdlNumber" defaultValue={d.cdlNumber ?? ''} error={fe['cdlNumber']} />
+          <Field label="State" name="cdlState" maxLength={2} defaultValue={d.cdlState ?? ''} error={fe['cdlState']} />
+          <Field label="CDL expiry" name="cdlExpiry" type="date" defaultValue={d.cdlExpiry ?? ''} error={fe['cdlExpiry']} />
+        </div>
+        <Field label="Medical card expiry" name="medicalCardExpiry" type="date" defaultValue={d.medicalCardExpiry ?? ''} error={fe['medicalCardExpiry']} />
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" busy={busy}>Save</Button>
         </div>
       </form>
     </Modal>

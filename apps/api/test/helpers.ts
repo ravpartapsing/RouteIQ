@@ -18,7 +18,7 @@ export const uniq = (prefix: string) => `${prefix}${Date.now().toString(36)}${(n
 
 export async function call(
   app: FastifyInstance,
-  method: 'GET' | 'POST' | 'PATCH',
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
   url: string,
   opts: { body?: unknown; token?: string } = {},
 ) {
@@ -45,3 +45,5 @@ export async function registerCarrier(app: FastifyInstance) {
   if (res.status !== 201) throw new Error(`register failed: ${JSON.stringify(res.body)}`);
   return { carrierCode, email, password, tokens: res.body as { accessToken: string; refreshToken: string } };
 }
+
+export const inDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
